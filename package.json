@@ -1,0 +1,35 @@
+{
+    "name": "papr",
+    "main": "index.html",
+    "chromium-args": "--enable-transparent-visuals --ignore-certificate-errors --remote-debugging-port=9000",
+    "description": "The wallpaper swiss knife.",
+    "version": "0.0.1",
+    "bugs": "https://github.com/efoxbr/papr",
+    "window": {
+        "title": "Papr",
+        "icon": "default_icon.png",
+        "min_width": 740,
+        "min_height": 400,
+        "frame": false,
+        "transparent": true
+    },
+    "dependencies": {
+        "async": "~2.6.0",
+        "cheerio": "^0.19.0",
+        "drag-drop": "~2.13.2",
+        "fetch": "~0.3.5",
+        "mkdirp": "~0.3.5",
+        "request": "^2.67.0",
+        "request-progress": "~3.0.0",
+        "sanitize-filename": "~1.6.1",
+        "sendkeys-js": "~0.0.4",
+        "wallpaper": "~2.6.0"
+    },
+    "webkit": {
+        "page-cache": true
+    },
+    "permissions": [
+        "http://*/",
+        "https://*/"
+    ]
+}
