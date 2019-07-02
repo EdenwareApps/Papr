@@ -96,6 +96,14 @@
 			this.document = _window.document;
 			
 		}
+
+		isMaximized(){
+			var win = this.window.nw.Window.get()
+			if(win.x > 0 || win.y > 0) return false
+			var widthMargin = 6, heightMargin = 6;
+			return (this.window.outerWidth >= (this.window.screen.availWidth - widthMargin) && this.window.outerHeight >= (this.window.screen.availHeight - heightMargin));
+		}
+
 		create() {
 		
 			var that = this;
@@ -226,6 +234,7 @@
 			nwWin.removeAllListeners("close");
 			
 			nwWin.on("maximize", function() {
+				that.window.console.warn('max start')
 				that.window.localStorage.nwCustomFrameState = "maximized";
                 if(buttonMaximize.getAttribute("style") === null ||
                    (buttonMaximize.getAttribute("style") !== null && buttonMaximize.getAttribute("style").indexOf("display: none;") === -1)) {
@@ -237,6 +246,7 @@
 				that.window.localStorage.nwCustomFramePosY = inititalPosY;
 				that.window.localStorage.nwCustomFrameSizeW = inititalSizeW;
 				that.window.localStorage.nwCustomFrameSizeH = inititalSizeH;
+				that.window.console.warn('max end')
 			});
 			
 			var stateBeforeFullScreen;
@@ -255,10 +265,12 @@
 			});
 
 			nwWin.on("restore", function() {
+				that.window.console.warn('restore start')
 				that.window.localStorage.nwCustomFrameState = "restored";
 				buttonRestore.setAttribute("style", buttonRestore.getAttribute("style") === null ? "display: none;" : buttonRestore.getAttribute("style") + "display: none;");
 				buttonMaximize.setAttribute("style", buttonMaximize.getAttribute("style").replace("display: none;", ""));
 				mainContainer.setAttribute("style", mainContainer.getAttribute("style").replace("display: none;", ""));
+				that.window.console.warn('restore end')
 			});
 
 			nwWin.on("minimize", function() {
@@ -518,6 +530,7 @@
 		var cf = new CustomFrame(_window, options);
 		cf.create();
 		_window.nw.Window.get().__cfInitialized = true;
+		return cf;
 		
 	};
 	

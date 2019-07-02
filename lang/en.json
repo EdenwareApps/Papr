@@ -10,5 +10,7 @@
     "RENAME_GROUP": "Rename group",
     "CHANGE_GROUP": "Change group",
     "DELETE": "Delete",
-    "DESCRIPTION": "With Papr you search, choose and apply your new wallpaper with very few clicks, besides being able to save your favorites."
+    "ORIGIN": "Origin",
+    "DESCRIPTION": "With Papr you search, choose and apply your new wallpaper with very few clicks, besides being able to save your favorites.",
+    "OPEN_FOLDER": "Open folder"
 }

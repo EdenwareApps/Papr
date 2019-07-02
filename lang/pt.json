@@ -10,5 +10,7 @@
     "RENAME_GROUP": "Renomear grupo",
     "CHANGE_GROUP": "Alterar grupo",
     "DELETE": "Apagar",
-    "DESCRIPTION": "Com o Papr você procura, escolhe e aplica seu novo papel de parede com pouquíssimos cliques, além de poder salvar seus favoritos."
+    "ORIGIN": "Origem",
+    "DESCRIPTION": "Com o Papr você procura, escolhe e aplica seu novo papel de parede com pouquíssimos cliques, além de poder salvar seus favoritos.",
+    "OPEN_FOLDER": "Abrir pasta"
 }

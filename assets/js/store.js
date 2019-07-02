@@ -58,9 +58,10 @@ var Store = (() => {
 })(); 
        
 var Config = (() => {
-	var self = {}, file = 'data/configure.json', loaded = false, defaults = {
-		"locale": "",
-		"favorite-on-apply": true
+	var self = {}, file = 'configure.json', loaded = false, defaults = {
+		"favorite-on-apply": false,
+		"fixed-location": "",
+		"locale": ""
 	}, data = defaults;
 	self.load = () => {
 		loaded = true;
@@ -72,7 +73,7 @@ var Config = (() => {
 				}
 				//console.log('DATA', data)
 				if(typeof(_data)=='string' && _data.length > 2){
-					_data = _data.replaceAll("\n", "");
+					_data = _data.replace(new RegExp("([\r\n\t]| +)", "g"), "");
 					//data = stripBOM(data.replace(new RegExp("([\r\n\t]| +)", "g"), "")); // with \n the array returns empty (?!)
 					_data = JSON.parse(_data);
 					if(typeof(_data)=='object'){

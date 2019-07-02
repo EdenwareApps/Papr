@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html class="page-index">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Papr</title>			
+		<script type="text/javascript">
+			var win = nw.Window.get()
+			global.onerror = window.onerror = (err) => { 
+			    logErr('Unhandled error', err)
+				var ok = false;
+				if(typeof(win) != 'undefined' && win){
+					try {
+						win.show()
+						ok = true;
+					} catch(e) { }
+				}
+				if(!ok){
+					nw.App.closeAllWindows()
+				}
+				return ok
+			}
+			function traceback() { 
+				try { 
+					var a = {}; 
+					a.debug() 
+				} catch(ex) {
+					return ex.stack.replace('TypeError: a.debug is not a function', '').trim()
+				}
+			}
+			function censor(censor) {
+				var i = 0;
+				return function(key, value) {
+					if(i !== 0 && typeof(censor) === 'object' && typeof(value) == 'object' && censor == value) 
+						return '[Circular]' 
+					if(i >= 29) // seems to be a harded maximum of 30 serialized objects?
+						return '[Unknown]'
+					++i
+					return value
+				}
+			}
+			function logErr(){
+				let log = '', a = Array.from(arguments)
+				try {
+					log += JSON.stringify(a, censor(a)) + "\r\n"
+				} catch(e) { }
+				log += traceback()+"\r\n\r\n"
+				if(!fs){
+					fs = require('fs')
+				}
+				if(fs.existsSync('error.log')){
+					fs.appendFileSync('error.log', log)
+				} else {
+					fs.writeFileSync('error.log', log)
+				}
+			}
+			process.removeAllListeners('uncaughtException')
+			process.removeAllListeners('unhandledRejection')
+			process.on('uncaughtException', (err) => {
+				console.error('Unhandled exception', err)
+				if(typeof(logErr)=='function'){
+					logErr('Unhandled exception', err)
+				}
+				//process.exit(1)
+				return true
+			})
+			process.on('unhandledRejection', (reason, p) => {
+				console.error(reason, 'Unhandled rejection at promise', p)
+				if(typeof(logErr)=='function'){
+					logErr(reason, 'Unhandled rejection at promise', p)
+				}
+				//process.exit(1)
+				return true
+			})
+		</script>	
+	</head>
+	<body class="initial">
+		<header class="initial">
+			<div>
+				<div id="qfc">
+					<a href="javascript:;" id="logo" onclick="home()" title="Papr">
+						<img src="default_icon.png" />
+					</a> &nbsp; 
+					<form id="qf">
+						<input type="text" id="q" autocomplete="on" placeholder="Search..." />
+						<i class="fas fa-search qf-go-icon" id="submit" onclick="jQuery('#qf').trigger('submit')"></i>
+						<i class="fas fa-asterisk fa-spin qf-load-icon"></i>
+					</form>
+					<!-- <a href="javascript:;" class="option" id="option-cog"><i class="fas fa-cog"></i></a> //-->
+					<a href="javascript:;" class="option" id="option-heart" onclick='showFavs()'><i class="fas fa-heart"></i><span class="option-count">0</span></a>
+				</div>
+				<div id="suggest">
+					<div></div>
+				</div>
+			</div>
+		</header>
+		<div class="results">
+			<section></section>
+		</div>
+		<div class="sublayer" id="sublayer-front"></div>
+		<div class="sublayer" id="sublayer-back"></div>
+		<footer></footer>
+		<script>
+			var gui = require('nw.gui'), win = gui.Window.get(), path = require('path'), wallpaper = require('wallpaper'), fs = require('fs'), request = require('request'), progress = require('request-progress'), sanitize = require("sanitize-filename");
+ 		</script>
+		<link rel="stylesheet" type="text/css" href="assets/css/style.css" />
+		<script src="assets/js/jquery-3.2.1.js"></script>
+		<script src="assets/js/store.js"></script>
+		<script src="assets/js/lang.js"></script>
+		<script src="assets/js/util.js"></script>
+		<script src="assets/js/target/nw.js"></script>
+		<script src="assets/js/papr.js"></script>
+		<script>      
+			function updateBackgroundFile(file){
+				document.querySelector('div#sublayer-back').style.backgroundImage = 'url("file:///'+file.replace(new RegExp('\\\\', 'g'), '/')+'?'+(new Date()).getTime()+'")'
+			}
+
+			function updateBackground(file){
+				if(typeof(file) == 'string'){
+					updateBackgroundFile(file)
+				} else {
+					wallpaper.get().then(updateBackgroundFile)
+				}
+			}
+
+			jQuery(window).on('lngload', () => {
+				jQuery('#option-cog').attr('title', Lang.OPTIONS);
+				jQuery('#option-heart').attr('title', Lang.FAVS);
+				jQuery('#submit').attr('title', Lang.CLICK_TO_SEARCH);
+				jQuery('#q').attr('placeholder', Lang.SEARCH_PLACEHOLDER);
+				jQuery('#q').attr('title', Lang.SEARCH_TIP);
+				jQuery('footer').text(Lang.DESCRIPTION);
+				updateFavCount();
+				doResize();
+				jQuery(window).on('resize', doResize);      
+				jQuery.getScript("assets/fa/js/fontawesome-all.js")
+				updateBackground()
+			})
+
+			var locales = [getDefaultLocale(true), 'en'], locale = Config.get('locale');
+			if(locale) locales.unshift(locale);
+			loadLanguage(locales, () => {
+				jQuery(window).trigger('lngload');
+			})
+
+			function stylize(cssCode){
+				console.log('css', cssCode);
+				var s = document.getElementById("stylize");
+				if(!s){
+					s = document.createElement("style");
+					s.type = "text/css";
+					s.id = "stylize";
+				}
+				if(s.styleSheet){
+					s.styleSheet.cssText = cssCode;
+				} else {
+					s.appendChild(document.createTextNode(cssCode));
+				}
+				document.getElementsByTagName("head")[0].appendChild(s)
+			}
+
+			function doResize(){
+				var margin = 20, ratio = screen.width / screen.height, previewWidth = 200, previewHeight = parseInt(previewWidth / ratio), bw = jQuery('body').width(), count = parseInt(bw / (previewWidth + margin)), containerWidth = (count * (previewWidth + margin));
+				stylize('.item, .item img { width: '+previewWidth+'px; height: '+previewHeight+'px; } .item-wrap { width: '+(previewWidth + margin)+'px; } .item-options { width: '+previewWidth+'px; } .results section { width: '+containerWidth+'px; } ');
+				console.log(parseInt(bw / (previewWidth + margin))+' per line')
+			}
+
+			function home(){
+				jQuery('header, body').addClass('initial');
+				jQuery('.results section').html('')
+			}
+
+			function setLoading(is){
+				if(is){
+					jQuery('.qf-go-icon').hide();
+					jQuery('.qf-load-icon').show()
+				} else {
+					jQuery('.qf-load-icon').hide();
+					jQuery('.qf-go-icon').show()
+				}
+			}
+
+			function setItemState(element, state){
+				switch(state){
+					case 'normal':
+						element.find('.item-error,.item-apply,.item-loading,.item-loading-fill').hide();
+						element.find('img').css('opacity', 1);
+						break;
+					case 'working':
+						element.find('.item-loading-fill').show();
+						element.find('.item-error, .item-apply, .item-loading').hide();
+						element.find('img').css('opacity', 0.64);
+						break;
+					case 'error':
+						element.find('.item-error').show();
+						element.find('.item-apply, .item-loading, .item-loading-fill').hide();
+						element.find('img').css('opacity', 0.64);
+						break;
+					case 'success':
+						element.find('.item-apply').show();
+						element.find('.item-error, .item-loading, .item-loading-fill').hide();
+						element.find('img').css('opacity', 0.64);
+						break;
+				}
+			}
+
+			function showResults(error, results) {
+				showingFavs = false;
+				if (error || !results || !results.length) {
+					jQuery('.results > section').addClass('icon-only').html('<i class="fas fa-exclamation-circle"></i>');
+					console.error(error)
+				} else {
+					var html = '<div class="tag-block">';
+					results.forEach((result) => {
+						if(result.width == screen.width && result.height == screen.height){
+							html += '<div class="item-wrap"><a href="javascript:;" class="item result" data-url="'+result.url+'" data-source="'+result.referer+'" title="'+Lang.CLICK_TO_APPLY+'">'+
+								'<img src="'+result.thumbnail+'" class="thumb" />'+
+								'<i class="fas fa-asterisk fa-spin item-loading item-flag" /></i>'+
+								'<i class="fas fa-asterisk fa-spin item-loading-fill item-flag" /></i>'+
+								'<i class="fas fa-exclamation-triangle item-error item-flag"></i>'+
+								'<i class="fas fa-check-circle item-apply item-flag"></i>'+
+							'</a>'+
+							'<span class="item-options">'+
+								'<a href="javascript:;" class="info" data-url="'+result.referer+'" title="'+Lang.ORIGIN+'"><i class="fas fa-info-circle"></i></a>'+
+								'<a href="javascript:;" class="addfav" title="'+Lang.ADD_FAV+'"><i class="fas fa-heart"></i></a>'+
+							'</span></div>';
+						}
+					});
+					html += '</div>';
+					jQuery('.results section').removeClass('icon-only').html(html);
+				}
+				setLoading(false)
+			}
+
+			function removeDirIfEmpty(folder){
+				fs.readdir(folder, function (err, files){
+					if(!files || !files.length){
+						fs.rmdir(folder) // we're checkng just to be sure, but rmdir already deletes only if the dir is empty
+					}
+				})
+			}
+
+			function moveFolder(from, to, _cb) {
+				var cb = () => {
+					fs.rmdir(from);
+					if(typeof(_cb)=='function'){
+						_cb()
+					}
+				}
+				fs.mkdir(to, () => {
+					fs.readdir(from, (err, files) => {
+						if(files && files.length){
+							var iterator = 0, tasks = Array(files.length).fill((callback) => {
+								var file = files[iterator];
+								iterator++;
+								var nfile = file;
+								while(fs.existsSync(to+'/'+nfile)){
+									nfile = '_'+nfile;
+								}
+								fs.rename(from+'/'+file, to+'/'+nfile, () => {
+									callback()
+								})
+							});
+							if(typeof(async) == 'undefined'){
+								async = require('async')
+							}
+							async.parallelLimit(tasks, 1, (err, results) => {
+								cb()
+							})
+						} else {
+							cb()
+						}
+					})
+				})
+			}
+
+			function getTags(cb){
+				var folder = 'wallpapers/favs';
+				fs.readdir(folder, (err, files) => {
+					if(!files){
+						files = []
+					}
+					cb(files)
+				})
+			}
+
+			var showingFavs = false;
+			function showFavs(selFocus, noLoader) {
+				showingFavs = true;
+				jQuery('header, body').removeClass('initial');
+				if(!noLoader){
+					jQuery('.results > section').addClass('icon-only').html('<i class="fas fa-asterisk fa-spin"></i>')
+				}
+				var folder = 'wallpapers/favs';
+				getTags((files) => {
+					if(files.length){
+						var html = '', iterator = 0, tasks = Array(files.length).fill((callback) => {
+							if(showingFavs){
+								var subFolder = folder + '/' + files[iterator];
+								iterator++;
+								console.log('SCAN', subFolder);
+								if(fs.lstatSync(subFolder).isDirectory()){
+									return fs.readdir(subFolder, (err, _files) => {
+										console.log(_files);
+										if(_files && _files.length){
+											let tag = path.basename(subFolder);
+											html += '<div class="tag-block" data-tag="'+tag+'"><div class="tag-block-header"><i class="fas fa-folder-open" title="'+Lang.OPEN_FOLDER+'" onclick="nw.Shell.showItemInFolder(path.resolve(\''+path.resolve(subFolder).replace(new RegExp('\\\\', 'g'), '/')+'\'))"></i><i class="fas fa-tag"></i> <span class="tag-block-title" title="'+Lang.RENAME_GROUP+'" data-tag="'+tag+'">' + tag + '</span></div>';
+											_files.forEach((file) => {
+												html += '<div class="item-wrap" data-source="'+subFolder+'/'+file+'"><a href="javascript:;" class="item fav" data-source="'+subFolder+'/'+file+'">'+
+														'<img src="'+subFolder+'/'+file+'" class="thumb" />'+
+														'<i class="fas fa-exclamation-triangle item-flag item-error"></i>'+
+														'<i class="fas fa-check-circle item-flag item-apply"></i>'+
+													'</a>'+
+													'<span class="item-options">'+
+													'<a href="javascript:;" class="retag" data-tag="'+tag+'" title="'+Lang.CHANGE_GROUP+'"><i class="fas fa-tag"></i></a>'+
+													'<a href="javascript:;" class="remfav" data-tag="'+tag+'" title="'+Lang.DELETE+'"><i class="fas fa-trash"></i></a>'+
+													'</span></div>';
+											});
+											html += '</div>';
+											// console.log(html);
+										}
+										callback()
+									})
+								}
+							}
+							callback()
+						});
+						if(typeof(async) == 'undefined'){
+							async = require('async')
+						}
+						async.parallelLimit(tasks, 1, (err, results) => {
+							console.log('DONE', tasks.length, html, showingFavs);
+							if(showingFavs){
+								jQuery('.results > section').removeClass('icon-only').html(html);
+								if(selFocus){
+									var e = jQuery(selFocus);
+									if(e.length){
+										window.scrollTo(0, e.offset().top - 48);
+									}
+								}
+							}
+						})
+					} else {
+						jQuery('.results > section').addClass('icon-only').html('<i class="fas fa-exclamation-circle"></i>');
+						console.error(err)
+					}
+				})				
+			}
+
+			function updateFavCount(cb){
+				var folder = 'wallpapers/favs';
+				getTags((files) => {
+					var suggestHTML = '';
+					if(files.length){
+						var count = 0, iterator = 0, limit = 8, tasks = Array(files.length).fill((callback) => {
+							var subFolder = folder + '/' + files[iterator]
+							iterator++
+							console.log('SCAN', subFolder)
+							if(fs.lstatSync(subFolder).isDirectory()){
+								return fs.readdir(subFolder, (err, _files) => {
+									console.log(_files)
+									if(_files && _files.length){
+										let tag = path.basename(subFolder)
+										if(limit){
+											limit--
+											suggestHTML += '<a href="javascript:;" onclick="goSearch(\''+tag+'\')"><i class="fas fa-search"></i> '+tag+'</a>';
+										}
+										count += _files.length
+									}
+									callback()
+								})
+							}
+							callback()
+						});
+						if(typeof(async) == 'undefined'){
+							async = require('async')
+						}
+						async.parallelLimit(tasks, 1, (err, results) => {
+							console.log('DONE', tasks.length, count);
+							jQuery('#option-heart .option-count').html(count);
+							jQuery('#suggest > div').html(suggestHTML);
+							if(typeof(cb)=='function'){
+								cb(count)
+							}
+						})
+					} else {
+						jQuery('#option-heart .option-count').html(count);
+						if(typeof(cb)=='function'){
+							cb(count)
+						}
+					}
+				})
+			}
+
+			var imageChecking = null;
+			function checkImage(file, success, error){
+				if(!imageChecking){
+					imageChecking = document.createElement('img');
+					document.body.appendChild(imageChecking);
+					imageChecking.className = 'check-image';
+				}
+				imageChecking.onload = success;
+				imageChecking.onerror = error;
+				imageChecking.src = file;
+			}
+
+			function getTempFilename(url){
+				var filename = path.basename(url).split('?')[0].split('#')[0];
+				var ext = path.extname(filename);
+				if(!ext || ext.length > 5){
+					filename += (ext = '.jpg')					
+				}
+				return 'wallpapers/download/'+filename;
+			}
+
+			function download(uri, path, referer, onProgress, onResponse, onError, onEnd) {
+				progress(request({ url: uri, throttle: 20, headers: { 'Referer': referer, 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36' }}))     				
+					.on('progress', onProgress)
+					.on('response', onResponse)
+					.on('error', onError)
+					.on('end', onEnd)
+					.pipe(fs.createWriteStream(path))
+			}
+
+			function goSearch(kw){
+				jQuery('#q').val(kw);
+				jQuery('#qf').trigger('submit')
+			}
+
+			function doSearch(kw){
+				jQuery('.results > section').addClass('icon-only').html('<i class="fas fa-asterisk fa-spin"></i>');
+				gis(kw+' '+screen.width+'x'+screen.height, showResults)
+			}
+
+			function downloadWallpaper(src, referer, item, progress, callback){
+				console.warn(src)
+				var f = getTempFilename(src)
+				download(src, f, referer, (p) => {
+					progress(p)
+				}, (p) => {
+					console.log('response', p)
+				}, (e) => {
+					console.log('error', e);
+					callback(e)
+				}, (p) => {
+					console.log('end', p, f)
+					validateImage(f, (err) => {
+						if(err){
+							callback(err)
+						} else {
+							callback(null, f)
+						}
+					})
+				})
+			}
+
+			function setWallpaper(file, cb){
+				wallpaper.set(file)
+				updateBackground()
+			}
+
+			jQuery(document).on('click', 'a.retag', (e) => {
+				var bt = jQuery(e.currentTarget), element = bt.parent().prev(), tag = bt.attr('data-tag'), file = element.attr('data-source');
+				console.log(element, file);
+				var newTag = prompt(Lang.NEW_TAG, tag);
+				if(newTag){
+					newTag = sanitize(newTag);
+					console.log(tag+' => '+newTag);
+					if(newTag && newTag != tag){
+						var dest = 'wallpapers/favs/'+newTag+'/'+path.basename(file), oFolder = path.dirname(file);
+						if(file != dest){
+							copyFile(file, dest);
+							fs.unlink(file, () => {
+								console.log('rmdir', oFolder);
+								removeDirIfEmpty(oFolder);
+								setTimeout(() => {
+									showFavs('.tag-block[data-tag="'+newTag+'"]', true);
+									updateFavCount()
+								}, 150)
+							})
+						}
+					}
+				}
+			})
+
+			jQuery(document).on('click', 'span.tag-block-title', (e) => {
+				var element = jQuery(e.currentTarget), tag = element.attr('data-tag');
+				var newTag = prompt(Lang.NEW_TAG, tag);
+				if(newTag){
+					newTag = sanitize(newTag);
+					console.log(tag+' => '+newTag);
+					if(newTag && newTag != tag){
+						var dest = 'wallpapers/favs/'+newTag, oFolder = 'wallpapers/favs/'+tag;
+						if(newTag.toLowerCase() == tag.toLowerCase()){
+							fs.rename(oFolder, dest, (err) => {
+								showFavs('.tag-block[data-tag="'+newTag+'"]', true);
+							})
+						} else {
+							console.log(oFolder, dest);
+							moveFolder(oFolder, dest, (err) => {
+								showFavs('.tag-block[data-tag="'+newTag+'"]', true);
+							})
+						}
+					}
+				}				
+			})
+
+			jQuery(document).on('click', 'a.remfav', (e) => {
+				var bt = jQuery(e.currentTarget), element = bt.parent().prev(), tag = bt.attr('data-tag');
+				bt.remove();
+				var file = (element).attr('data-source');
+				fs.unlink(file, (err) => {
+					if (err) throw err;
+					console.log('successfully deleted '+file);
+					removeDirIfEmpty(path.dirname(file));
+					setTimeout(() => {
+						showFavs('.tag-block[data-tag="'+tag+'"]', true);
+						updateFavCount()
+					}, 150)
+				});
+			})
+
+			jQuery(document).on('click', 'a.addfav', (e) => {
+				var kw = jQuery('#q').val(), bt = jQuery(e.currentTarget), element = bt.parent().prev(), loader = element.find('.item-loading-fill');
+				setItemState(element, 'working');
+				bt.addClass('isfav');
+				downloadWallpaper((element).attr('data-url'), (element).attr('data-source'), element, (p) => {
+					return;
+					if(p.size && p.size.total){
+						var p = p.percent;
+						if(p < 0.175){
+							p = 0.175;
+						}
+						console.warn('percent', p);
+						loader.css('opacity', p)
+					}
+				}, (err, result) => {
+					console.log('done', err, result);
+					if(err){
+						console.error('download err', err);
+						setItemState(element, 'error');
+						bt.removeClass('isfav')
+					} else {
+						checkImage(result, () => {
+							setItemState(element, 'success');
+							var dest = 'wallpapers/favs/'+kw+'/'+path.basename(result);
+							copyFile(result, dest);
+							updateFavCount()
+						}, () => {
+							console.error('download corrupted', err);
+							setItemState(element, 'error');
+							bt.removeClass('isfav')
+						})
+					}
+					setTimeout(() => {
+						setItemState(element, 'normal')
+					}, 1200)
+				})
+			})
+
+			jQuery(document).on('click', 'a.info', (e) => {
+				var bt = jQuery(e.currentTarget), element = bt.parent().prev();
+				nw.Shell.openExternal(bt.attr('data-url'))
+			})
+
+			jQuery(document).on('click', 'a.item.fav', (e) => {
+				focusDesktop()
+				var element = jQuery(e.currentTarget);
+				var file = (element).attr('data-source')
+				setItemState(element, 'success');
+				setWallpaper(file);
+				setTimeout(() => {
+					setItemState(element, 'normal')
+				}, 1200)
+			})
+
+			jQuery(document).on('click', 'a.item.result', (e) => {
+				focusDesktop()
+				var kw = jQuery('#q').val(), element = jQuery(e.currentTarget), loader = element.find('.item-loading-fill');
+				setItemState(element, 'working');
+				downloadWallpaper((element).attr('data-url'), (element).attr('data-source'), element, (p) => {
+					return;
+					if(p.size && p.size.total){
+						var p = p.percent;
+						if(p < 0.175){
+							p = 0.175;
+						}
+						console.warn('percent', p);
+						loader.css('opacity', p)
+					}
+				}, (err, result) => {
+					console.log('done', err, result);
+					if(err){
+						console.error('download err', err);
+						setItemState(element, 'error')
+					} else {
+						checkImage(result, () => {
+							setItemState(element, 'success');
+							let loc = Config.get("fixed-location")
+							if(!loc){
+								loc = path.resolve('wallpapers/active.jpg')
+							}
+							copyFile(result, loc, () => {
+								setWallpaper(loc)
+							})
+							if(Config.get("favorite-on-apply")){
+								var dest = 'wallpapers/favs/'+kw+'/'+path.basename(result)
+								copyFile(result, dest)
+								updateFavCount()
+							}
+						}, () => {
+							console.error('download corrupted', err);
+							setItemState(element, 'error')
+						})
+					}
+					setTimeout(() => {
+						setItemState(element, 'normal')
+					}, 1200)
+				})
+			})
+
+			jQuery('#qf').on('submit', (e) => {
+				e.preventDefault(); // Cancel the submit
+				setLoading(true);
+				var kw = jQuery('#q').val();
+				jQuery('header, body').removeClass('initial');
+				setTimeout(() => {
+					doSearch(kw)
+				}, 50);
+            	return false; // Exit the .each loop
+			})
+		</script>
+	</body>
+</html>
