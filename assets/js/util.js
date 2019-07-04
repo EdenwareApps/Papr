@@ -1,4 +1,7 @@
 
+
+var async = require('async')
+
 function moveFile(from, to, callback){
     if(from == to){
         callback(to)
@@ -157,9 +160,3 @@ function removeFolder(location, itself, next) {
         })
     })
 }
-
-function hideToolTips(){
-    jQuery('.html5tooltip-bottom, .html5tooltip-left, .html5tooltip-right, .html5tooltip-top').remove()
-}
-
-jQuery('html, body').on('mousedown', hideToolTips)

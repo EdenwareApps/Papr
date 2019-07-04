@@ -12,5 +12,6 @@
     "DELETE": "Apagar",
     "ORIGIN": "Origem",
     "DESCRIPTION": "Com o Papr você procura, escolhe e aplica seu novo papel de parede com pouquíssimos cliques, além de poder salvar seus favoritos.",
-    "OPEN_FOLDER": "Abrir pasta"
+    "OPEN_FOLDER": "Abrir pasta",
+    "NEW_VERSION_AVAILABLE": "Já está disponível uma nova versão do programa. Deseja realizar o download agora?"
 }
