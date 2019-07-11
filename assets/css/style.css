@@ -35,7 +35,7 @@ header.initial > div > div#qfc { padding: 24px 0 36px 0; }
 .results > section.icon-only > svg { color: #DDDDDD; }
 .option {text-decoration: none;color: #DDDDDD;float: right;position: relative;top: 9px;font-size: 42px;margin-right: 9px;filter: drop-shadow(0 0 6px #111111FF);}
 .option:hover { opacity: 0.75; }
-.option-count {color: #EEEEEE;position: relative;font-size: 75%;top: -14px;left: -8px;text-decoration: none;text-shadow: 1px 1px 1px #111111;}
+.option-count {color: #EEEEEE;position: relative;font-size: 75%;top: -14px;left: -8px;text-decoration: none;text-shadow: -1px -1px 6px #111111;background: radial-gradient(farthest-corner, #111111AA 0%, #11111100 64%);}
 header.initial .option {text-decoration: none;float: right;position: relative;top: 9px;font-size: 42px;margin-right: 9px;}
 .item-options { text-align: right; display: inline-block; position: relative; top: -10px; right: -9px; z-index: 999; }
 .item-options > a {color: #111111;transition: all 0.1s ease-in-out;position: relative;border-radius: 7px;top: 0;margin-left: 12px;}

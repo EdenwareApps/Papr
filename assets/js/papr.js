@@ -130,6 +130,7 @@ function setLoading(is){
 }
 
 function setItemState(element, state){
+	console.warn('itemstate', state, element, traceback())
 	switch(state){
 		case 'normal':
 			element.find('.item-error,.item-apply,.item-loading,.item-loading-fill').hide();
@@ -382,7 +383,7 @@ function checkImage(file, success, error){
 		}
 		imageChecking.onload = success
 		imageChecking.onerror = error
-		console.warn('check', file, b64, err)
+		// console.warn('check', file, b64, err)
 		if(!err && b64){
 			imageChecking.src = b64
 		} else {
@@ -420,6 +421,35 @@ function doSearch(kw){
 	gis(kw+' '+screen.width+'x'+screen.height, showResults)
 }
 
+function validateImage(file, _cb){
+	let cb = (e, d) => {
+		if(typeof(_cb) == 'function'){
+			_cb(e, d)
+			_cb = null
+		}
+	}
+    fileToBase64(file, (err, b64) => {
+        if(err){
+            cb(err)
+        } else {
+            const image = new Image(), err = () => {
+                cb('Invalid image.')
+            }
+            image.onload = () => {
+				image.onload = null
+                if(image.width){
+                    cb(null, file)
+                } else {
+                    err()
+                }
+                image.src = null
+            }
+            image.onerror = err
+            image.src = b64
+        }
+    })
+}
+
 function downloadWallpaper(src, referer, item, progress, callback){
 	console.warn(src)
 	var f = getTempFilename(src)
@@ -433,6 +463,7 @@ function downloadWallpaper(src, referer, item, progress, callback){
 	}, (p) => {
 		console.log('end', p, f)
 		validateImage(f, (err) => {
+			console.log('vimage', err)
 			if(err){
 				callback(err)
 			} else {
@@ -442,7 +473,7 @@ function downloadWallpaper(src, referer, item, progress, callback){
 	})
 }
 
-function setWallpaper(file, cb){
+function setWallpaper(file){
 	wallpaper.set(file)
 	updateBackground()
 }
@@ -461,6 +492,53 @@ function updateBackground(file){
 	} else {
 		wallpaper.get().then(updateBackgroundFile)
 	}
+}
+
+const resolutions = [
+	[720, 480],
+	[1152, 768],
+	[1280, 854],
+	[1440, 960],
+	[2880, 1920],
+	[320, 240],
+	[640, 480],
+	[800, 600],
+	[1024, 768],
+	[1152, 864],
+	[1280, 960],
+	[1400, 1050],
+	[1600, 1200],
+	[2048, 1536],
+	[3200, 2400],
+	[4000, 3000],
+	[6400, 4800],
+	[800, 480],
+	[1280, 768],
+	[1280, 1024],
+	[2560, 2048],
+	[5120, 4096],
+	[852, 480],
+	[1280, 720],
+	[1365, 768],
+	[1600, 900],
+	[1920, 1080],
+	[320, 200],
+	[640, 400],
+	[1280, 800],
+	[1440, 900],
+	[1680, 1050],
+	[1920, 1200],
+	[2560, 1600],
+	[3840, 2400],
+	[7680, 4800],
+	[2048, 1080]
+]
+
+function similarResolutions(w, h){
+	let r = w / h, s = w + h
+	return resolutions.filter(u => {
+		return ((u[0] / u[1]) == r && (u[0] + u[1]) >= s)
+	})
 }
 
 jQuery(document).ready(() => {
