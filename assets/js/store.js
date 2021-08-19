@@ -1,8 +1,13 @@
-var Store = (() => {
-	var dir = 'data/', self = {}, cache = {};
+
+const dataPath = path.normalize(nw.App.dataPath.substr(0, nw.App.dataPath.lastIndexOf(nw.App.manifest.name) + nw.App.manifest.name.length))
+
+var Store = ((dir) => {
+	var self = {}, cache = {};
 	fs.stat(dir, (err, stat) => {
 		if(err !== null) {
-			fs.mkdir(dir);
+			fs.mkdir(dir, { recursive: true }, (err) => {
+				if (err) throw err;
+			})
 		}
 	});
 	self.resolve = (key) => {
@@ -55,10 +60,10 @@ var Store = (() => {
 		cache[key] = val;
 	}
 	return self;
-})(); 
+})(dataPath + path.sep + 'cache')
        
-var Config = (() => {
-	var self = {}, file = 'configure.json', loaded = false, defaults = {
+var Config = ((file) => {
+	var self = {}, loaded = false, defaults = {
 		"favorite-on-apply": false,
 		"fixed-location": "",
 		"locale": ""
@@ -81,6 +86,8 @@ var Config = (() => {
 					}
 				}
 			}
+		} else {
+			fs.writeFile(file, JSON.stringify(defaults), 'utf8')
 		}
 	}
 	self.getAll = () => {
@@ -124,4 +131,4 @@ var Config = (() => {
 		fs.writeFileSync(file, JSON.stringify(data, null, 4), "utf8")
 	}
 	return self;
-})()
+})(dataPath + path.sep + 'configure.json')

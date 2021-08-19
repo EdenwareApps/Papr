@@ -1,109 +1,23 @@
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0
 
-var request = require('request'), cheerio = require('cheerio')
-var baseURL = 'http://images.google.com/search?tbm=isch&q=';
-var userAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36'
-var defaultReqOpts = {	
-	rejectUnauthorized: false,
-	strictSSL: false,
-    headers: {
-		'User-Agent': userAgent
-    }
-}
+const wpPath = (nw.App.dataPath.substr(0, nw.App.dataPath.lastIndexOf(nw.App.manifest.name) + nw.App.manifest.name.length) + path.sep + 'wallpapers').replace(new RegExp('\\\\', 'g'), '/'), search = require('duckduckgo-images-api')
 
-function gis(opts, done) {
-  var searchTerm;
-  var queryStringAddition;
-  var filterOutDomains;
-
-  if (typeof opts === 'string') {
-    searchTerm = opts;
-  }
-  else {
-    searchTerm = opts.searchTerm;
-    queryStringAddition = opts.queryStringAddition;
-    filterOutDomains = opts.filterOutDomains;
-  }
-
-  var url = baseURL + searchTerm;
-
-  if (filterOutDomains) {
-    url += encodeURIComponent(' ' + filterOutDomains.map(addSiteExcludePrefix).join(' '));
-  }
-
-  if (queryStringAddition) {
-    url += queryStringAddition;
-  }
-  var reqOpts = Object.assign(defaultReqOpts, {url})
-
-  // console.log(reqOpts.url);
-  request(reqOpts, parseGISResponse);
-
-  function parseGISResponse(error, response, body) {
-    if (error) {
-      done(error);
-    }
-    else {
-      var $ = cheerio.load(body);
-      var metaLinks = $('.rg_meta');
-      var gisURLs = [];
-      metaLinks.each(collectHref);
-      done(error, gisURLs);
-    }
-
-    function collectHref(i, element) {
-      if (element.children.length > 0 && 'data' in element.children[0]) {
-        var metadata = JSON.parse(element.children[0].data);
-        if (metadata.ou) {
-          //console.log(metadata);
-          var result = {
-            url: metadata.ou,
-            width: metadata.ow,
-            height: metadata.oh,
-            thumbnail: metadata.tu,
-            thumbnail_width: metadata.tw,
-            thumbnail_height: metadata.th,
-            referer: metadata.ru
-          };
-          if (domainIsOK(result.url)) {
-            gisURLs.push(result);
-          }
-        }
-        // Elements without metadata.ou are subcategory headings in the results page.
-      }
-    }
-  }
-
-  function domainIsOK(url) {
-    if (!filterOutDomains) {
-      return true;
-    }
-    else {
-      return filterOutDomains.every(skipDomainIsNotInURL);
-    }
-
-    function skipDomainIsNotInURL(skipDomain) {
-      return url.indexOf(skipDomain) === -1;
-    }
-  }
-}
-
-function addSiteExcludePrefix(s) {
-  return '-site:' + s;
+var defaultDownloadHeaders = {
+	'User-Agent': navigator.userAgent
 }
 
 function stylize(cssCode){
-	console.log('css', cssCode);
-	var s = document.getElementById("stylize");
+	console.log('css', cssCode)
+	var s = document.getElementById("stylize")
 	if(!s){
-		s = document.createElement("style");
+		s = document.createElement("style")
 		s.type = "text/css";
 		s.id = "stylize";
 	}
 	if(s.styleSheet){
 		s.styleSheet.cssText = cssCode;
 	} else {
-		s.appendChild(document.createTextNode(cssCode));
+		s.appendChild(document.createTextNode(cssCode))
 	}
 	document.getElementsByTagName("head")[0].appendChild(s)
 }
@@ -154,34 +68,6 @@ function setItemState(element, state){
 	}
 }
 
-function showResults(error, results) {
-	showingFavs = false;
-	if (error || !results || !results.length) {
-		jQuery('.results > section').addClass('icon-only').html('<i class="fas fa-exclamation-circle"></i>');
-		console.error(error)
-	} else {
-		var html = '<div class="tag-block">';
-		results.forEach((result) => {
-			if(result.width == screen.width && result.height == screen.height){
-				html += '<div class="item-wrap"><a href="javascript:;" class="item result" data-url="'+result.url+'" data-source="'+result.referer+'" title="'+Lang.CLICK_TO_APPLY+'">'+
-					'<img src="'+result.thumbnail+'" class="thumb" />'+
-					'<i class="fas fa-asterisk fa-spin item-loading item-flag" /></i>'+
-					'<i class="fas fa-asterisk fa-spin item-loading-fill item-flag" /></i>'+
-					'<i class="fas fa-exclamation-triangle item-error item-flag"></i>'+
-					'<i class="fas fa-check-circle item-apply item-flag"></i>'+
-				'</a>'+
-				'<span class="item-options">'+
-					'<a href="javascript:;" class="info" data-url="'+result.referer+'" title="'+Lang.ORIGIN+'"><i class="fas fa-info-circle"></i></a>'+
-					'<a href="javascript:;" class="addfav" title="'+Lang.ADD_FAV+'"><i class="fas fa-heart"></i></a>'+
-				'</span></div>';
-			}
-		});
-		html += '</div>';
-		jQuery('.results section').removeClass('icon-only').html(html);
-	}
-	setLoading(false)
-}
-
 function removeDirIfEmpty(folder){
 	fs.readdir(folder, function (err, files){
 		if(!files || !files.length){
@@ -225,7 +111,7 @@ function moveFolder(from, to, _cb) {
 }
 
 function getTags(cb){
-	var folder = 'wallpapers/favs';
+	var folder = wpPath + '/favs';
 	fs.readdir(folder, (err, files) => {
 		if(!files){
 			files = []
@@ -241,7 +127,7 @@ function showFavs(selFocus, noLoader) {
 	if(!noLoader){
 		jQuery('.results > section').addClass('icon-only').html('<i class="fas fa-asterisk fa-spin"></i>')
 	}
-	var folder = 'wallpapers/favs';
+	var folder = wpPath + '/favs';
 	getTags((files) => {
 		if(files.length){
 			var html = '', iterator = 0, tasks = Array(files.length).fill((callback) => {
@@ -276,26 +162,25 @@ function showFavs(selFocus, noLoader) {
 				callback()
 			})
 			async.parallelLimit(tasks, 1, (err, results) => {
-				console.log('DONE', tasks.length, html, showingFavs);
+				console.log('DONE', tasks.length, html, showingFavs)
 				if(showingFavs){
-					jQuery('.results > section').removeClass('icon-only').html(html);
+					jQuery('.results > section').removeClass('icon-only').html(html)
 					if(selFocus){
-						var e = jQuery(selFocus);
+						var e = jQuery(selFocus)
 						if(e.length){
-							window.scrollTo(0, e.offset().top - 48);
+							window.scrollTo(0, e.offset().top - 48)
 						}
 					}
 				}
 			})
 		} else {
-			jQuery('.results > section').addClass('icon-only').html('<i class="fas fa-exclamation-circle"></i>');
-			console.error(err)
+			jQuery('.results > section').addClass('icon-only').html('<i class="fas fa-ellipsis-h"></i>')
 		}
 	})				
 }
 
 function updateFavCount(cb){
-	var folder = 'wallpapers/favs';
+	var folder = wpPath + '/favs';
 	getTags((files) => {
 		var suggestHTML = '';
 		if(files.length){
@@ -362,66 +247,19 @@ function fileToBase64(file, cb){
         if(exists) {
             fs.readFile(file, (err, content) => {
                 if(err) {
-                    cb('Failed to read file', '')
+                    cb('Failed to read file. #1', '')
                 } else {
                     imageBufferToBase64(content, file, cb)
                 }
             })
         } else {
-            cb('Failed to read file', '')
+            cb('Failed to read file. #2', '')
         }
     })
 }
 
-var imageChecking = null;
-function checkImage(file, success, error){
-	fileToBase64(file, (err, b64) => {
-		if(!imageChecking){
-			imageChecking = document.createElement('img')
-			document.body.appendChild(imageChecking)
-			imageChecking.className = 'check-image'
-		}
-		imageChecking.onload = success
-		imageChecking.onerror = error
-		// console.warn('check', file, b64, err)
-		if(!err && b64){
-			imageChecking.src = b64
-		} else {
-			imageChecking.src = file
-		}
-	})
-}
-
-function getTempFilename(url){
-	var filename = path.basename(url).split('?')[0].split('#')[0];
-	var ext = path.extname(filename);
-	if(!ext || ext.length > 5){
-		filename += (ext = '.jpg')					
-	}
-	return 'wallpapers/download/'+filename;
-}
-
-function download(uri, path, referer, onProgress, onResponse, onError, onEnd) {
-	let opts = Object.assign(defaultReqOpts, {url: uri, throttle: 20, headers: { 'Referer': referer, 'User-Agent': userAgent}})
-	progress(request(opts))     				
-		.on('progress', onProgress)
-		.on('response', onResponse)
-		.on('error', onError)
-		.on('end', onEnd)
-		.pipe(fs.createWriteStream(path))
-}
-
-function goSearch(kw){
-	jQuery('#q').val(kw);
-	jQuery('#qf').trigger('submit')
-}
-
-function doSearch(kw){
-	jQuery('.results > section').addClass('icon-only').html('<i class="fas fa-asterisk fa-spin"></i>');
-	gis(kw+' '+screen.width+'x'+screen.height, showResults)
-}
-
 function validateImage(file, _cb){
+	console.log('Validating', file, traceback())
 	let cb = (e, d) => {
 		if(typeof(_cb) == 'function'){
 			_cb(e, d)
@@ -446,8 +284,81 @@ function validateImage(file, _cb){
             }
             image.onerror = err
             image.src = b64
+			if(b64){
+				image.src = b64
+			} else {
+				image.src = file
+			}
         }
     })
+}
+
+function getTempFilename(url){
+	var filename = path.basename(url).split('?')[0].split('#')[0];
+	var ext = path.extname(filename);
+	if(!ext || ext.length > 5){
+		filename += (ext = '.jpg')					
+	}
+	return wpPath + '/download/'+filename;
+}
+
+function download(uri, path, Referer, onProgress, onResponse, onError, onEnd) {
+	let opts = {url: uri, throttle: 20}
+	opts.headers = Object.assign({Referer}, defaultDownloadHeaders)
+	progress(request(opts))     				
+		.on('progress', onProgress)
+		.on('response', onResponse)
+		.on('error', onError)
+		.on('end', onEnd)
+		.pipe(fs.createWriteStream(path))
+}
+
+function goSearch(kw){
+	jQuery('#q').val(kw);
+	jQuery('#qf').trigger('submit')
+}
+
+function doSearch(kw){
+	jQuery('.results > section').addClass('icon-only').html('<i class="fas fa-asterisk fa-spin"></i>')
+	alreadyListedImages = []
+	currentKeywords = kw
+	hasMorePages = true
+	currentPage = 0
+	search.image_search({ query: kw+' '+screen.width+'x'+screen.height, moderate: true }).then(ret => showResults(null, ret)).catch(showResults)
+}
+
+function showResults(error, results) {
+	showingFavs = false;
+	if (error || !results || !results.length) {
+		jQuery('.results > section').addClass('icon-only').html('<i class="fas fa-exclamation-circle"></i>');
+		console.error(error)
+	} else {
+		var html = '', section = jQuery('.results section').removeClass('icon-only')
+		results.forEach(result => {
+			if(alreadyListedImages.includes(result.image)) return
+			alreadyListedImages.push(result.image)
+			if(result.width == screen.width && result.height == screen.height){
+				html += '<div class="item-wrap"><a href="javascript:;" class="item result" data-url="'+result.image+'" data-source="'+result.url+'" title="'+Lang.CLICK_TO_APPLY+'">'+
+					'<img src="'+result.thumbnail+'" class="thumb" />'+
+					'<i class="fas fa-asterisk fa-spin item-loading item-flag" /></i>'+
+					'<i class="fas fa-asterisk fa-spin item-loading-fill item-flag" /></i>'+
+					'<i class="fas fa-exclamation-triangle item-error item-flag"></i>'+
+					'<i class="fas fa-check-circle item-apply item-flag"></i>'+
+				'</a>'+
+				'<span class="item-options">'+
+					'<a href="javascript:;" class="info" data-url="'+result.url+'" title="'+Lang.ORIGIN+'"><i class="fas fa-info-circle"></i></a>'+
+					'<a href="javascript:;" class="addfav" title="'+Lang.ADD_FAV+'"><i class="fas fa-heart"></i></a>'+
+				'</span></div>';
+			}
+		});
+		
+		if(currentPage < 2){
+			section.html('<div class="tag-block result-block">' + html + '</div>')
+		} else {
+			section.find('.result-block').append(html)
+		}
+	}
+	setLoading(false)
 }
 
 function downloadWallpaper(src, referer, item, progress, callback){
@@ -492,6 +403,113 @@ function updateBackground(file){
 	} else {
 		wallpaper.get().then(updateBackgroundFile)
 	}
+}
+
+function checkFilePermission(file, mask, cb){ // https://stackoverflow.com/questions/11775884/nodejs-file-permissions
+    fs.stat(file, function (error, stats){
+        if (error){
+            cb (error, false);
+        } else {
+            var v = false;
+            try {
+                v = !!(mask & parseInt ((stats.mode & parseInt ("777", 8)).toString (8)[0]));
+            } catch(e) {
+                console.error(e)
+            }
+            cb (null, v)
+        }
+    })
+}
+
+function isDir(path){
+    var isFolder = false;
+    try{
+        isFolder = fs.lstatSync(path).isDirectory()
+    } catch(e) {
+        isFolder = false;
+    }
+    return isFolder;
+}
+
+function isWritable(_path, cb){
+    var isFolder = isDir(_path);
+    if(isFolder){
+        var testFile = _path + path.sep + 'test.tmp';
+        fs.writeFile(testFile, '1', (err) => {
+            if (err){
+                cb(null, false)
+            } else {
+                cb(null, true)
+            }
+            fs.unlink(testFile, jQuery.noop)
+        })
+    } else {
+        checkFilePermission(_path, 2, cb)
+    }
+}
+
+function notify(txt, cb){
+	var options = {
+		icon: "default_icon.png",
+		body: txt
+	}
+	var notification = new Notification(nw.App.manifest.window.title, options)
+	notification.onclick = () => {
+		if(typeof(cb) == 'function'){
+			cb()
+		}
+	}
+	//document.getElementById("sound-magic").play()
+	notification.onshow = () => {
+		document.getElementById("sound-magic").play()
+	}
+	setTimeout(() => {
+		notification.close()
+	}, 3500)
+  }
+
+function saveFileDialog(file, callback){
+    var _callback = (file) => {
+        isWritable(path.dirname(file), (err, writable) => {
+            if(writable){
+                callback(file)
+            } else {
+                alert(Lang.FOLDER_NOT_WRITABLE)
+                saveFileDialog(file, callback)
+            }
+        })
+    }
+    if(!file) file = '';
+    jQuery('<input id="saveas" type="file" nwsaveas />').
+        prop('nwsaveas', path.basename(file)).
+        prop('nwworkingdir', path.dirname(file)).
+        one('change', function (){
+            var chosenFile = this.value
+            if(!chosenFile){
+                chosenFile = file
+            }
+            _callback(chosenFile)
+        }).
+        trigger('click')
+} 
+
+var openFileDialogChooser = false
+function openFileDialog(callback, accepts) {
+    if(!openFileDialogChooser){ // JIT
+        openFileDialogChooser = jQuery('<input type="file" />');
+    }
+    openFileDialogChooser.get(0).value = "";
+    if(accepts){
+        openFileDialogChooser.attr("accept", accepts)
+    } else {
+        openFileDialogChooser.removeAttr("accept")
+    }
+    openFileDialogChooser.off('change')
+    openFileDialogChooser.on('change', function(evt) {
+        callback(openFileDialogChooser.val())
+    });    
+    openFileDialogChooser.trigger('click')  
+    return openFileDialogChooser
 }
 
 const resolutions = [
@@ -541,6 +559,27 @@ function similarResolutions(w, h){
 	})
 }
 
+[
+	dataPath + '/wallpapers',
+	dataPath + '/wallpapers/download',
+	dataPath + '/wallpapers/favs'
+].forEach(d => {
+	fs.mkdir(d, {recursive: true}, () => {})
+})
+
+jQuery(window).on('close', () => {
+	let location = dataPath + '/cache'
+    fs.readdirSync(location, (err, files) => {
+        files.forEach(file => {
+            file = location + '/' + file
+			let stat = fs.statSync(file)
+			if (!stat.isDirectory()) {
+                fs.unlinkSync(file)
+            }
+        })
+    })
+})
+
 jQuery(document).ready(() => {
 	jQuery.ajax({
 		type: "GET",
@@ -562,9 +601,8 @@ jQuery(document).ready(() => {
 							if(confirm(Lang.NEW_VERSION_AVAILABLE)){
 								nw.Shell.openExternal(url)
 							} else {
-								win.on('close', () => {
+								jQuery(window).on('close', () => {
 									nw.Shell.openExternal(url)									
-									win.close(true)
 								})
 							}
 						}
@@ -575,3 +613,7 @@ jQuery(document).ready(() => {
 	})
 })
 	
+win.on('close', () => {
+	jQuery(window).trigger('close')								
+	win.close(true)
+})

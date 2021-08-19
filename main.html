@@ -98,6 +98,9 @@
 		</div>
 		<div class="sublayer" id="sublayer-front"></div>
 		<div class="sublayer" id="sublayer-back"></div>
+		<audio id="sound-magic" style="visibility: hidden;">
+			<source src="magic.wav" type="audio/wav">
+		</audio>
 		<footer></footer>
 		<script>
 			var gui = require('nw.gui'), win = gui.Window.get(), path = require('path'), wallpaper = require('wallpaper'), fs = require('fs'), request = require('request'), progress = require('request-progress'), sanitize = require("sanitize-filename");
@@ -138,7 +141,7 @@
 					newTag = sanitize(newTag);
 					console.log(tag+' => '+newTag);
 					if(newTag && newTag != tag){
-						var dest = 'wallpapers/favs/'+newTag+'/'+path.basename(file), oFolder = path.dirname(file);
+						var dest = wpPath + '/favs/'+newTag+'/'+path.basename(file), oFolder = path.dirname(file);
 						if(file != dest){
 							copyFile(file, dest);
 							fs.unlink(file, () => {
@@ -161,7 +164,7 @@
 					newTag = sanitize(newTag);
 					console.log(tag+' => '+newTag);
 					if(newTag && newTag != tag){
-						var dest = 'wallpapers/favs/'+newTag, oFolder = 'wallpapers/favs/'+tag;
+						var dest = wpPath + '/favs/'+newTag, oFolder = wpPath + '/favs/'+tag;
 						if(newTag.toLowerCase() == tag.toLowerCase()){
 							fs.rename(oFolder, dest, (err) => {
 								showFavs('.tag-block[data-tag="'+newTag+'"]', true);
@@ -212,15 +215,17 @@
 						setItemState(element, 'error');
 						bt.removeClass('isfav')
 					} else {
-						checkImage(result, () => {
-							setItemState(element, 'success');
-							var dest = 'wallpapers/favs/'+kw+'/'+path.basename(result);
-							copyFile(result, dest);
-							updateFavCount()
-						}, () => {
-							console.error('download corrupted', err);
-							setItemState(element, 'error');
-							bt.removeClass('isfav')
+						validateImage(result, (err) => {
+							if(err){
+								console.error('download corrupted', err)
+								setItemState(element, 'error')
+								bt.removeClass('isfav')
+							} else {
+								setItemState(element, 'success')
+								var dest = wpPath + '/favs/'+kw+'/'+path.basename(result)
+								copyFile(result, dest)
+								updateFavCount()
+							}
 						})
 					}
 					setTimeout(() => {
@@ -265,23 +270,25 @@
 						console.error('download err', err);
 						setItemState(element, 'error')
 					} else {
-						checkImage(result, () => {
-							setItemState(element, 'success')
-							let loc = Config.get("fixed-location")
-							if(!loc){
-								loc = path.resolve('wallpapers/active.jpg')
+						validateImage(result, (err) => {
+							if(err){
+								console.error('download corrupted', err, result);
+								setItemState(element, 'error')
+							} else {
+								setItemState(element, 'success')
+								let loc = Config.get("fixed-location")
+								if(!loc){
+									loc = path.resolve(wpPath + '/active.jpg')
+								}
+								copyFile(result, loc, () => {
+									setWallpaper(loc)
+								})
+								if(Config.get("favorite-on-apply")){
+									var dest = wpPath + '/favs/'+kw+'/'+path.basename(result)
+									copyFile(result, dest)
+									updateFavCount()
+								}
 							}
-							copyFile(result, loc, () => {
-								setWallpaper(loc)
-							})
-							if(Config.get("favorite-on-apply")){
-								var dest = 'wallpapers/favs/'+kw+'/'+path.basename(result)
-								copyFile(result, dest)
-								updateFavCount()
-							}
-						}, () => {
-							console.error('download corrupted', err, result);
-							setItemState(element, 'error')
 						})
 					}
 					setTimeout(() => {
@@ -301,12 +308,60 @@
             	return false; // Exit the .each loop
 			})
 
-			window.addEventListener('beforeunload', () => {
-			  console.log('Cleaning temp folder')
-			  removeFolder('wallpapers/download', false, () => {
-				console.log('Temp folder clean')
-			  })
+			jQuery('body').on('scroll', () => {
+				console.log('scroll')
+				if(shouldLoadMore()){
+					console.log('load')
+					load(currentKeywords)
+				}
 			})
+
+			window.addEventListener('beforeunload', () => {
+				console.log('Cleaning temp folder')
+				removeFolder(wpPath + '/download', false, () => {
+					console.log('Temp folder clean')
+				})
+			})
+
+			document.onkeyup=function(e){
+				var e = e || window.event; // for IE to cover IEs window event-object
+				if(e.ctrlKey){
+					if(e.altKey){
+						if(e.which == 83) { // Ctrl+Alt+S
+							notify(Lang.FIX_WALLPAPER_PATH)
+							saveFileDialog(Config.get('fixed-location'), file => {
+								if(file){
+									Config.set('fixed-location', file)
+								} else {
+									Config.set('fixed-location', '')
+								}
+							})
+							return false
+						}
+					} else {
+						if(e.which == 83) { // Ctrl+S
+							wallpaper.get().then(wfile => {
+								saveAs(file => {
+									fs.copyFile(wfile, file, () => {})
+								})
+							})
+							return false
+						} else if(e.which == 79) { // Ctrl+O
+							openFileDialog(file => {
+								let loc = Config.get('fixed-location')
+								if(!loc){
+									loc = path.resolve(wpPath + '/active.jpg')
+								}
+								fs.copyFile(file, loc, () => {
+									setWallpaper(file)
+								})
+							}, 'image/*')
+							return false
+						}
+					}
+				}
+
+			}
 
 			nw.App.on('open', function (argString) {
 				win.show()

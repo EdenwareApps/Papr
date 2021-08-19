@@ -110,22 +110,6 @@ function imageBufferToBase64(content, extOrName, cb){
     }
 }
 
-function fileToBase64(file, cb){    
-    fs.exists(file, (exists) => {
-        if(exists) {
-            fs.readFile(file, (err, content) => {
-                if(err) {
-                    cb('Failed to read file', '')
-                } else {
-                    imageBufferToBase64(content, file, cb)
-                }
-            })
-        } else {
-            cb('Failed to read file', '')
-        }
-    })
-}
-
 function removeFolder(location, itself, next) {
     location = path.resolve(location)
     console.log(itself?'REMOVING':'CLEANING', location);
@@ -160,3 +144,13 @@ function removeFolder(location, itself, next) {
         })
     })
 }
+
+$.fn.isInViewport = function() {
+    var elementTop = $(this).offset().top;
+    var elementBottom = elementTop + $(this).outerHeight();
+  
+    var viewportTop = $(window).scrollTop();
+    var viewportBottom = viewportTop + $(window).height();
+  
+    return elementBottom > viewportTop && elementTop < viewportBottom;
+};
