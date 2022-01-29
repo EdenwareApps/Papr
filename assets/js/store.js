@@ -1,15 +1,15 @@
 
-const dataPath = path.normalize(nw.App.dataPath.substr(0, nw.App.dataPath.lastIndexOf(nw.App.manifest.name) + nw.App.manifest.name.length))
 
 var Store = ((dir) => {
 	var self = {}, cache = {};
-	fs.stat(dir, (err, stat) => {
-		if(err !== null) {
-			fs.mkdir(dir, { recursive: true }, (err) => {
-				if (err) throw err;
-			})
+	try {
+		let stat = fs.statSync(dir)
+		if(!stat){
+			fs.mkdirSync(dir, { recursive: true })
 		}
-	});
+	} catch(e) {
+		fs.mkdirSync(dir, { recursive: true })
+	}
 	self.resolve = (key) => {
 		return dir + self.prepareName(key) + '.json';
 	}
@@ -87,7 +87,7 @@ var Config = ((file) => {
 				}
 			}
 		} else {
-			fs.writeFile(file, JSON.stringify(defaults), 'utf8')
+			fs.writeFileSync(file, JSON.stringify(defaults), 'utf8')
 		}
 	}
 	self.getAll = () => {
@@ -128,7 +128,8 @@ var Config = ((file) => {
 		if(fs.existsSync(file)){
 			fs.truncateSync(file, 0)
 		}
-		fs.writeFileSync(file, JSON.stringify(data, null, 4), "utf8")
+		fs.writeFileSync(file, JSON.stringify(data, null, 4), 'utf8')
 	}
+	self.load()
 	return self;
 })(dataPath + path.sep + 'configure.json')

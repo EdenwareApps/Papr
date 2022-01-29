@@ -1,6 +1,7 @@
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0
 
-const wpPath = (nw.App.dataPath.substr(0, nw.App.dataPath.lastIndexOf(nw.App.manifest.name) + nw.App.manifest.name.length) + path.sep + 'wallpapers').replace(new RegExp('\\\\', 'g'), '/'), search = require('duckduckgo-images-api')
+const wpPath = paths.data.replace(new RegExp('\\\\', 'g'), '/') + '/wallpapers'
+const search = require('duckduckgo-images-api')
 
 var defaultDownloadHeaders = {
 	'User-Agent': navigator.userAgent
@@ -560,9 +561,9 @@ function similarResolutions(w, h){
 }
 
 [
-	dataPath + '/wallpapers',
-	dataPath + '/wallpapers/download',
-	dataPath + '/wallpapers/favs'
+	wpPath,
+	wpPath + '/download',
+	wpPath + '/favs'
 ].forEach(d => {
 	fs.mkdir(d, {recursive: true}, () => {})
 })

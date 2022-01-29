@@ -99,11 +99,13 @@
 		<div class="sublayer" id="sublayer-front"></div>
 		<div class="sublayer" id="sublayer-back"></div>
 		<audio id="sound-magic" style="visibility: hidden;">
-			<source src="magic.wav" type="audio/wav">
+			<source src="assets/wav/magic.wav" type="audio/wav">
 		</audio>
 		<footer></footer>
 		<script>
 			var gui = require('nw.gui'), win = gui.Window.get(), path = require('path'), wallpaper = require('wallpaper'), fs = require('fs'), request = require('request'), progress = require('request-progress'), sanitize = require("sanitize-filename");
+			var paths = require('env-paths')('Papr', {suffix: ''})
+			var dataPath = paths.data.replace(new RegExp('\\\\', 'g'), '/')
  		</script>
 		<link rel="stylesheet" type="text/css" href="assets/css/style.css" />
 		<script src="assets/js/jquery-3.2.1.js"></script>

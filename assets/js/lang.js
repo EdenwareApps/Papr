@@ -21,13 +21,13 @@ function getLocale(short, noUnderline){
 }
 
 function loadLanguage(locales, callback){
-	var localeMask = "lang/{0}.json", locale = locales.shift();
-	jQuery.getJSON("lang/"+locale+".json", function( data ) {
+	var locale = locales.shift();
+	jQuery.getJSON("/lang/"+locale+".json", function( data ) {
 		Lang = data;
 		if(locale == 'en'){
 			callback()
 		} else {
-			jQuery.getJSON("lang/en.json", function( data ) { // always load EN language as fallback for missing translations
+			jQuery.getJSON("/lang/en.json", function( data ) { // always load EN language as fallback for missing translations
 				Lang = Object.assign(data, Lang);
 				callback()
 			})

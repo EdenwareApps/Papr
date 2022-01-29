@@ -2,8 +2,8 @@
     "name": "papr",
     "main": "main.html",
     "chromium-args": "--ignore-certificate-errors --ignore-urlfetcher-cert-requests --tls13-variant=disabled --disable-features=NetworkPrediction --disable-background-timer-throttling --proxy-auto-detect --no-zygote --no-sandbox --enable-gpu-async-worker-context --password-store=basic --force-device-scale-factor=1 --enable-smooth-scrolling --disable-crash-handler=true --disable-breakpad --no-experiments --no-pings --disable-transparency --remote-debugging-port=9000",
-    "description": "The wallpaper swiss knife.",
-    "version": "1.0.2",
+    "description": "Search and apply wallpapers easily.",
+    "version": "1.0.3",
     "bugs": "https://github.com/efoxbr/papr",
     "window": {
         "title": "Papr",
@@ -17,6 +17,7 @@
         "cheerio": "^0.19.0",
         "drag-drop": "^2.13.3",
         "duckduckgo-images-api": "^1.0.5",
+        "env-paths": "^2.2.1",
         "fetch": "~0.3.5",
         "mkdirp": "~0.3.5",
         "request": "^2.88.2",
