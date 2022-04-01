@@ -1,4 +1,4 @@
-html { overflow: hidden; background: url(../images/pattern.jpg) repeat; }
+html { overflow: hidden; background: url(../images/wallpaper.jpg) repeat; }
 html, input, textarea, select, button { color: #111111; }
 body { overflow-x: hidden; margin: 0; font-family: tahoma, arial, sans-serif; font-size: 24px; height: 100vh; min-height: 100vh; -webkit-user-select: none; }
 a, .results { -webkit-user-select: text; -webkit-app-region: no-drag; }
