@@ -584,7 +584,7 @@ jQuery(window).on('close', () => {
 jQuery(document).ready(() => {
 	jQuery.ajax({
 		type: "GET",
-		url: 'http://megacubo.tv/papr/pad.xml',
+		url: 'http://edenware.app/papr/pad.xml',
 		dataType: "xml",
 		success: (xml) => {
 			let v = xml.getElementsByTagName('Program_Version')
@@ -598,7 +598,7 @@ jQuery(document).ready(() => {
 					if(data && data.version){
 						installedVersion = data.version
 						if(installedVersion < currentVersion){
-							let url = 'http://megacubo.tv/papr/?version='+installedVersion
+							let url = 'http://edenware.app/papr/?version='+installedVersion
 							if(confirm(Lang.NEW_VERSION_AVAILABLE)){
 								nw.Shell.openExternal(url)
 							} else {
